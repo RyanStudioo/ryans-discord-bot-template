@@ -4,7 +4,10 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
+from src.utils.logging import setup_logging
+
 load_dotenv()
+setup_logging()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 if TOKEN is None:
@@ -16,7 +19,7 @@ class Bot(commands.Bot):
 
     async def setup_hook(self):
         from cogs import load_cogs
-        load_cogs(self)
+        await load_cogs(self)
 
 client = Bot(command_prefix="!", intents=discord.Intents.all())
-client.run(token=TOKEN)
+client.run(token=TOKEN, log_handler=None)

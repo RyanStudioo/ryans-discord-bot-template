@@ -1,5 +1,14 @@
+import os
+
 import discord
 from discord.ext import commands
+from dotenv import load_dotenv
+
+load_dotenv()
+
+TOKEN = os.getenv("DISCORD_TOKEN")
+if TOKEN is None:
+    raise ValueError("DISCORD_TOKEN environment variable not set. Please set it in your .env file.")
 
 class Bot(commands.Bot):
     def __init__(self, command_prefix: str, intents: discord.Intents):
@@ -8,3 +17,6 @@ class Bot(commands.Bot):
     async def setup_hook(self):
         from cogs import load_cogs
         load_cogs(self)
+
+client = Bot(command_prefix="!", intents=discord.Intents.all())
+client.run(token=TOKEN)

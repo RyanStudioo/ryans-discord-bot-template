@@ -1,10 +1,8 @@
 import logging
-from pathlib import Path
 
 from discord.ext import commands
 
-COGS_PATH = Path(__file__).parent
-IGNORE = {"__init__.py", "template.py"}
+from src.utils.constants import COGS_PATH, IGNORED_COGS
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +10,7 @@ logger = logging.getLogger(__name__)
 async def load_cogs(bot: commands.Bot) -> None:
     """Load every cog in this package, logging and skipping any that fail."""
     for file in sorted(COGS_PATH.glob("*.py")):
-        if file.name in IGNORE or file.name.startswith("_"):
+        if file.name in IGNORED_COGS or file.name.startswith("_"):
             continue
 
         extension = f"cogs.{file.stem}"

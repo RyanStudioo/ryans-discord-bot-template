@@ -2,6 +2,8 @@
 
 Every decorator returns an ``app_commands.check`` predicate, so they stack with
 other application-command decorators and work on both commands and groups.
+``is_bot_owner_prefix()`` is the exception: it guards text (prefix) commands and
+returns a ``commands.check`` instead, since they never collect app-command checks.
 
 Example::
 
@@ -15,6 +17,7 @@ from __future__ import annotations
 
 import discord
 from discord import app_commands
+from discord.ext import commands
 
 MODERATOR_PERMISSIONS = (
     "manage_messages",
@@ -59,7 +62,7 @@ def _member_permissions(interaction: discord.Interaction) -> discord.Permissions
     return member.guild_permissions
 
 
-def is_owner():
+def is_bot_owner():
     """Only allow the bot owner (or application team members)."""
 
     async def predicate(interaction: discord.Interaction) -> bool:
@@ -120,3 +123,25 @@ def has_permissions(**required: bool):
         return True
 
     return app_commands.check(predicate)
+
+
+def is_bot_owner_prefix():
+    """Only allow the bot owner, for text (prefix) commands such as ``!sync``.
+
+    Text commands do not collect ``app_commands.check`` predicates, so this
+    mirrors ``is_bot_owner()`` as a ``commands.check`` that raises ``OwnerOnly``.
+
+    Example::
+
+        @commands.command(name="sync")
+        @is_bot_owner_prefix()
+        async def sync(ctx: commands.Context, option: str = ""):
+            ...
+    """
+
+    async def predicate(ctx: commands.Context) -> bool:
+        if not await ctx.bot.is_owner(ctx.author):
+            raise OwnerOnly("This command can only be used by the bot owner.")
+        return True
+
+    return commands.check(predicate)

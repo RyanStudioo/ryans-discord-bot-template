@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Discord bot template. Python >=3.13, discord.py 2.7.1, uv-managed. Commands are slash commands only.
+Discord bot template. Python >=3.13, discord.py 2.7.1, uv-managed. User commands are slash commands only; `!` prefix commands are reserved for owner ops (`cogs/owner.py`).
 
 ## Setup / commands
 
@@ -23,11 +23,11 @@ Discord bot template. Python >=3.13, discord.py 2.7.1, uv-managed. Commands are 
 - A cog that raises during load is logged and skipped, so a missing command usually means a load error. Check `logs/bot.log`.
 - `src/utils/constants.py` holds `COGS_PATH`, `IGNORED_COGS`, and `PROJECT_ROOT = parents[2]`. Update these there, not in `cogs/__init__.py`.
 - `cogs/template.py` is intentionally ignored, is only a snippet, and has no `setup()`. Copy it, add `setup()`, then rename it.
-- Prefix commands (`!`) are not used. Add `@app_commands.command(name=..., description=...)`; names and descriptions feed the auto `/help` (`cogs/help.py`). Commands without a description show "No description provided."
+- Prefix commands (`!`) are owner-only ops in `cogs/owner.py`: `!sync [global|guild|clear]`, `!cogs`, `!load`, `!unload`, `!reload`, `!shutdown`. They never appear in auto `/help`. Everything user-facing is a slash command: add `@app_commands.command(name=..., description=...)`; names and descriptions feed the auto `/help` (`cogs/help.py`). Commands without a description show "No description provided."
 
 ## Permission checks
 
-- `src/utils/checks.py` provides `is_owner()`, `is_admin()`, `is_mod()`, and `has_permissions(...)`.
+- `src/utils/checks.py` provides `is_bot_owner()`, `is_admin()`, `is_mod()`, `has_permissions(...)`, and `is_bot_owner_prefix()` (the bot-owner check for `!` prefix commands — app-command checks silently do nothing on text commands).
 - Put checks below `@app_commands.command(...)`, closest to the function:
 
 ```python
@@ -42,7 +42,7 @@ async def purge(interaction: discord.Interaction, amount: int): ...
 
 - `watchfiles` watches only `cogs/`. Modified and new `.py` files are reloaded/loaded automatically; changes inside a folder-based cog reload the whole `cogs.<folder>` package. `__pycache__`, `_`-prefixed names, and `IGNORED_COGS` are skipped.
 - Set `AUTO_RELOAD=false` to disable it.
-- Reloads update the in-memory command tree but do **not** call `tree.sync()`. Restart after changing a command name, description, or parameters so Discord picks up the change.
+- Reloads update the in-memory command tree but do **not** call `tree.sync()`. Restart after changing a command name, description, or parameters so Discord picks up the change (or run the owner-only `!sync`).
 - `src/` and `main.py` are not watched; restart after editing them.
 
 ## Layout

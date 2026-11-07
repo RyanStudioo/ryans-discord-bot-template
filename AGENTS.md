@@ -19,7 +19,7 @@ Discord bot template. Python >=3.13, discord.py 2.7.1, uv-managed. Commands are 
 
 ## Cogs
 
-- `cogs/__init__.py` auto-loads every `cogs/*.py` except `IGNORED_COGS` and `_`-prefixed files. Each file needs `async def setup(bot)`; the extension name is `cogs.<stem>`, so filenames must be valid module names.
+- `cogs/__init__.py` auto-loads every cog except `IGNORED_COGS` and `_`-prefixed names. A cog is either a `cogs/*.py` file or a `cogs/<name>/` folder containing `__init__.py`; both must expose `async def setup(bot)` (for folders, define it in `__init__.py`). The extension name is `cogs.<stem>` or `cogs.<folder>`, so names must be valid module names.
 - A cog that raises during load is logged and skipped, so a missing command usually means a load error. Check `logs/bot.log`.
 - `src/utils/constants.py` holds `COGS_PATH`, `IGNORED_COGS`, and `PROJECT_ROOT = parents[2]`. Update these there, not in `cogs/__init__.py`.
 - `cogs/template.py` is intentionally ignored, is only a snippet, and has no `setup()`. Copy it, add `setup()`, then rename it.
@@ -40,7 +40,7 @@ async def purge(interaction: discord.Interaction, amount: int): ...
 
 ## Auto-reload
 
-- `watchfiles` watches only `cogs/`. Modified and new `.py` files are reloaded/loaded automatically; `__pycache__`, `_`-prefixed files, and `IGNORED_COGS` are skipped.
+- `watchfiles` watches only `cogs/`. Modified and new `.py` files are reloaded/loaded automatically; changes inside a folder-based cog reload the whole `cogs.<folder>` package. `__pycache__`, `_`-prefixed names, and `IGNORED_COGS` are skipped.
 - Set `AUTO_RELOAD=false` to disable it.
 - Reloads update the in-memory command tree but do **not** call `tree.sync()`. Restart after changing a command name, description, or parameters so Discord picks up the change.
 - `src/` and `main.py` are not watched; restart after editing them.

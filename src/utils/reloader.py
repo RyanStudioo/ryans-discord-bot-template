@@ -61,12 +61,25 @@ class CogReloader:
     async def _handle_change(self, change: Change, path: Path) -> None:
         if change not in WATCHED_CHANGES:
             return
-        if path.suffix != ".py" or path.name.startswith("_"):
-            return
-        if path.name in IGNORED_COGS or "__pycache__" in path.parts:
+        if path.suffix != ".py" or "__pycache__" in path.parts:
             return
 
-        extension = f"cogs.{path.stem}"
+        try:
+            relative = path.relative_to(self.cogs_path)
+        except ValueError:
+            return
+
+        parts = relative.with_suffix("").parts
+        if len(parts) == 1 and relative.name in IGNORED_COGS:
+            return
+
+        # A nested file belongs to a folder-based cog; reload that package,
+        # whose __init__ exposes setup(). A top-level file is its own cog.
+        name = parts[0]
+        if name.startswith("_") or name in IGNORED_COGS:
+            return
+
+        extension = f"cogs.{name}"
         already_loaded = extension in self.bot.extensions
 
         try:

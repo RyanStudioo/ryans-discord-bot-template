@@ -8,12 +8,23 @@ logger = logging.getLogger(__name__)
 
 
 async def load_cogs(bot: commands.Bot) -> None:
-    """Load every cog in this package, logging and skipping any that fail."""
-    for file in sorted(COGS_PATH.glob("*.py")):
-        if file.name in IGNORED_COGS or file.name.startswith("_"):
+    """Load every cog in this package, logging and skipping any that fail.
+
+    A cog can be a single ``.py`` file or a folder. For a folder, its
+    ``__init__.py`` is imported and must expose a ``setup()`` function.
+    """
+    for entry in sorted(COGS_PATH.iterdir()):
+        if entry.name in IGNORED_COGS or entry.name.startswith("_"):
             continue
 
-        extension = f"cogs.{file.stem}"
+        if entry.is_dir():
+            if not (entry / "__init__.py").is_file():
+                continue
+            extension = f"cogs.{entry.name}"
+        elif entry.suffix == ".py":
+            extension = f"cogs.{entry.stem}"
+        else:
+            continue
         try:
             await bot.load_extension(extension)
         except Exception:

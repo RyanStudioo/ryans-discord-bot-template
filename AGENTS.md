@@ -2,6 +2,21 @@
 
 Discord bot template. Python >=3.13, discord.py 2.7.1, uv-managed. User commands are slash commands only; `!` prefix commands are reserved for owner ops (`cogs/owner.py`).
 
+## Documentation
+
+Three docs describe this repo and must stay in sync with the code:
+
+- `ARCHITECTURE.md` — the architecture: components, contracts, runtime flows.
+- `MIGRATION.md` — porting an existing discord.py bot into this format.
+- `AGENTS.md` (this file) — operational rules and commands.
+
+Any change to the architecture — layout, entrypoint, cog loading rules,
+`src/utils` contracts, constants, env vars, command or permission philosophy —
+or anything major for the migration story must be reflected in **both**
+`ARCHITECTURE.md` and `MIGRATION.md` in the same change set. Update this file
+too whenever a working rule changes. A code change without the matching doc
+updates is incomplete.
+
 ## Setup / commands
 
 - `cp .env.example .env`, then set `DISCORD_TOKEN`.

@@ -9,7 +9,38 @@ import discord
 from discord import app_commands
 
 HELP_COLOR = discord.Color.blurple()
+SUCCESS_COLOR = discord.Color.green()
+ERROR_COLOR = discord.Color.red()
+WARNING_COLOR = discord.Color.orange()
+INFO_COLOR = discord.Color.blurple()
 COMMANDS_PER_PAGE = 8
+
+
+def _status_embed(title: str, description: str, color: discord.Color) -> discord.Embed:
+    return discord.Embed(title=title, description=description, color=color)
+
+
+def success(description: str, *, title: str = "Success") -> discord.Embed:
+    """Green embed for a completed action."""
+    return _status_embed(title, description, SUCCESS_COLOR)
+
+
+def error(description: str, *, title: str = "Error") -> discord.Embed:
+    """Red embed for a failed action.
+
+    ``title`` names the type of error, e.g. ``"Permission denied"``.
+    """
+    return _status_embed(title, description, ERROR_COLOR)
+
+
+def warning(description: str, *, title: str = "Warning") -> discord.Embed:
+    """Orange embed for something the user should notice."""
+    return _status_embed(title, description, WARNING_COLOR)
+
+
+def info(description: str, *, title: str = "Info") -> discord.Embed:
+    """Blue embed for neutral information."""
+    return _status_embed(title, description, INFO_COLOR)
 
 
 def _leaf_commands(

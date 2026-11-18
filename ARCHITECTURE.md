@@ -44,11 +44,11 @@ cogs/                      # feature layer (auto-discovered)
   template.py              # copy-paste snippet, intentionally ignored by loader
 src/                       # shared infrastructure (never auto-reloaded)
   utils/
-    constants.py           # PROJECT_ROOT, COGS_PATH, IGNORED_COGS
+    constants.py           # PROJECT_ROOT, DATA_PATH, COGS_PATH, IGNORED_COGS
     logging.py             # setup_logging(): console + rotating file handler
     tree.py                # BotTree: application-command error handling
-    checks.py              # permission decorators + CheckFailure types
-    embeds.py              # /help page builder
+    checks.py              # permission + cooldown decorators, CheckFailure types
+    embeds.py              # /help and status embed builders
     pagination.py          # Paginator view (author-locked buttons)
     reloader.py            # CogReloader: watchfiles watcher over cogs/
 ```
@@ -132,19 +132,21 @@ error-handling point for application commands. Its `on_error`, in order:
 
 1. If the interaction was already answered (e.g. by a local `@cmd.error`
    handler), do nothing.
-2. Failures raised by `checks.py` types (`OwnerOnly`, `AdminOnly`, `ModOnly`,
+2. A cooldown failure (`app_commands.CommandOnCooldown`) → ephemeral "Slow
+   down" message including the remaining seconds.
+3. Failures raised by `checks.py` types (`OwnerOnly`, `AdminOnly`, `ModOnly`,
    `MissingPermissions`) → reply `str(error)`.
-3. Any other `CheckFailure` (including parameter-converter errors, which
-   discord.py raises as a `CheckFailure`) → generic "You do not have
-   permission…".
-4. Anything else → log with traceback, reply "Something went wrong…" — all
+4. Any other `CheckFailure` (for example, from discord.py's built-in checks)
+   → generic "You do not have permission…".
+5. Anything else → log with traceback, reply "Something went wrong…" — all
    ephemeral.
 
 ## Permission model
 
-`src/utils/checks.py` provides decorators returning `app_commands.check`
-predicates. Each raises its own `app_commands.CheckFailure` subclass so
-`BotTree` can produce the right ephemeral reply.
+`src/utils/checks.py` provides permission and cooldown decorators returning
+`app_commands.check` predicates. Each permission failure raises its own
+`app_commands.CheckFailure` subclass so `BotTree` can produce the right
+ephemeral reply; `cooldown()` wraps discord.py's cooldown check.
 
 | Decorator                | Passes when                                   |
 | ------------------------ | --------------------------------------------- |
@@ -152,6 +154,7 @@ predicates. Each raises its own `app_commands.CheckFailure` subclass so
 | `is_admin()`             | Member has the Administrator permission       |
 | `is_mod()`               | Administrator **or** any moderator permission |
 | `has_permissions(**kws)` | Member has every named permission             |
+| `cooldown(rate, per, *, key=None)` | Fewer than `rate` uses in the last `per` seconds; buckets default to one per user, `key` overrides the bucket |
 | `is_bot_owner_prefix()`   | `bot.is_owner(author)` — for **text** commands (app-command checks do nothing on prefix commands) |
 
 Moderator permissions (`MODERATOR_PERMISSIONS` in `checks.py`):
@@ -163,12 +166,12 @@ Moderator permissions (`MODERATOR_PERMISSIONS` in `checks.py`):
 
 | Module                   | Responsibility                                                                 |
 | ------------------------ | ------------------------------------------------------------------------------ |
-| `src/utils/constants.py` | Repo-level constants: `PROJECT_ROOT` (`parents[2]`), `COGS_PATH`, `IGNORED_COGS`. Add new shared paths/flags here, not in `cogs/__init__.py`. |
+| `src/utils/constants.py` | Repo-level constants: `PROJECT_ROOT` (`parents[2]`), `COGS_PATH`, `DATA_PATH` (`data/`), `IGNORED_COGS`. Add new shared paths/flags here, not in `cogs/__init__.py`. |
 | `src/utils/logging.py`   | `setup_logging()` — called exactly once, in `main.py`. Configures root-logger console output plus a rotating handler (5 MB × 5 files) writing `<LOG_DIR>/bot.log`. Cogs just use `logging.getLogger(__name__)`. |
-| `src/utils/embeds.py`    | `build_help_pages()` — flattens `bot.tree.get_commands()` into sorted `(name, description)` entries; groups ≤ 8 per page; falls back to "No description provided." |
+| `src/utils/embeds.py`    | `build_help_pages()` — flattens `bot.tree.get_commands()` into sorted `(name, description)` entries; groups ≤ 8 per page; falls back to "No description provided." Also `success()`, `error()`, `warning()`, and `info()` status embeds (error takes its type label via `title`). |
 | `src/utils/pagination.py`| `Paginator` — embed-view with Previous / page-counter / Next buttons; only the invoking user may navigate; 180 s timeout. Used by `/help` when there is more than one page. |
 | `src/utils/tree.py`      | `BotTree` — see command execution flow above. |
-| `src/utils/checks.py`    | Permission decorators — see permission model above. |
+| `src/utils/checks.py`    | Permission and `cooldown` decorators — see permission model above. |
 
 ## Command-tree sync, reload, and auto-reload
 
@@ -199,10 +202,11 @@ toggled on — otherwise login fails with `PrivilegedIntentsRequired`.
 
 ## Persistence
 
-The template ships no database or file storage. Cogs that need state should
-keep it under a single `data/` directory at the repo root (gitignored), with
-the path defined in `src/utils/constants.py`. Migration guidance for existing
-bots: `MIGRATION.md`.
+The template ships no database or file storage. Runtime state (databases,
+caches, uploads) belongs under `DATA_PATH` — the gitignored `data/` directory
+at the repo root, defined in `src/utils/constants.py`. Create the directory
+when first writing to it (e.g. `DATA_PATH.mkdir(parents=True, exist_ok=True)`).
+Migration guidance for existing bots: `MIGRATION.md`.
 
 ## Operational surface
 
@@ -219,6 +223,7 @@ Prefix-command errors are handled by that cog's `cog_command_error`.
 | New user-facing feature      | `cogs/<name>.py` (or a `cogs/<name>/` folder) |
 | Shared helper reused by cogs | new module in `src/utils/`, imported absolutely (`from src.utils.x import ...`) |
 | Shared constant/path         | `src/utils/constants.py`                    |
+| Runtime data (db, cache)     | Under `DATA_PATH` from `src/utils/constants.py` (`data/`, gitignored) |
 | Another owner op             | `cogs/owner.py`                             |
 | New permission tier          | `checks.py` (new `CheckFailure` subclass + helper; add it to `CHECK_FAILURES` in `tree.py` for the tailored reply) |
 | New env var                  | `.env.example` + document here and in `AGENTS.md`; read with `os.getenv` |
@@ -230,6 +235,7 @@ Prefix-command errors are handled by that cog's `cog_command_error`.
 | `ARCHITECTURE.md`  | This file: architecture, contracts, flows.               |
 | `AGENTS.md`        | Operational rules and commands for working on the repo.  |
 | `MIGRATION.md`     | Porting an existing discord.py bot into this format.     |
+| `docs/template.md` | Feature tour and `src/utils` API reference (usage level). |
 
 Architecture changes (layout, entrypoint, loading rules, `src/utils`
 contracts, constants, env vars, command/permission philosophy) must be

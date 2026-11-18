@@ -156,6 +156,9 @@ activemq-data/
 logs/
 *.log
 
+# Bot runtime data (databases, caches, uploads)
+data/
+
 # Environments
 .env
 .envrc

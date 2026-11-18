@@ -1,7 +1,9 @@
 # Migrating a Bot to This Template
 
 Everything you need in one place: how to run the template, the required file
-and folder structure, the core files, and the shape your code must take.
+and folder structure, the core files, and the shape your code must take. For a
+feature tour and the full `src/utils` API, see
+[`docs/template.md`](docs/template.md).
 
 ## 1. Running it
 
@@ -44,11 +46,11 @@ src/                        # shared infrastructure — already wired, leave as 
   utils/
     logging.py              # logging setup (console + rotating logs/bot.log) — configured once in main.py
     tree.py                 # command tree with built-in error replies for commands
-    checks.py               # permission decorators (is_mod, has_permissions, ...)
-    embeds.py               # builds the /help pages
+    checks.py               # permission + cooldown decorators (is_mod, cooldown, ...)
+    embeds.py               # builds the /help pages and status embeds
     pagination.py           # button paginator used by /help
     reloader.py             # hot-reload watcher for cogs/
-    constants.py            # PROJECT_ROOT, COGS_PATH, IGNORED_COGS
+    constants.py            # PROJECT_ROOT, COGS_PATH, DATA_PATH, IGNORED_COGS
 ```
 
 `main.py`, `cogs/__init__.py`, and everything in `src/utils/` are the core
@@ -91,18 +93,20 @@ the token. Its `setup_hook()` then does exactly three things:
 Infrastructure, all pre-wired through `main.py` — use it via imports, don't
 recreate it:
 
-- `checks.py` — permission decorators for slash commands (`is_bot_owner()`,
-  `is_admin()`, `is_mod()`, `has_permissions(...)`). They
-  stack under `@app_commands.command` and produce the ephemeral permission
-  error replies automatically.
+- `checks.py` — permission and cooldown decorators for slash commands
+  (`is_bot_owner()`, `is_admin()`, `is_mod()`, `has_permissions(...)`,
+  `cooldown(rate, per, ...)`). They stack under `@app_commands.command` and
+  produce the ephemeral permission/cooldown error replies automatically.
 - `tree.py` — `BotTree`, which intercepts command failures (permissions,
-  errors) and answers ephemerally.
+  cooldowns, errors) and answers ephemerally.
 - `logging.py` — logging setup; in your own modules just use
   `logging.getLogger(__name__)`.
 - `embeds.py` / `pagination.py` — build and page the auto-`/help` from command
-  names and descriptions; nothing for you to maintain.
-- `constants.py` — `PROJECT_ROOT` (repo root) and `COGS_PATH`; any other
-  repo-level constant goes here.
+  names and descriptions, and provide `success()` / `error()` / `warning()` /
+  `info()` status embeds; nothing for you to maintain.
+- `constants.py` — `PROJECT_ROOT` (repo root), `COGS_PATH`, and `DATA_PATH`
+  (gitignored `data/` for runtime state); any other repo-level constant goes
+  here.
 
 ## 4. What your migrated code must look like
 
@@ -141,6 +145,7 @@ Converting from prefix commands (`!`) to slash commands:
 | `ctx.author`                              | `interaction.user`                                  |
 | converters (`MemberConverter`, ...)       | plain type hints: `member: discord.Member`, ...     |
 | `@commands.has_permissions(...)`          | decorators from `src.utils.checks` (`is_mod`, ... ) |
+| `@commands.cooldown(...)`                 | `@cooldown(...)` from `src.utils.checks`            |
 | use-error handlers for missing arguments  | not needed — Discord enforces required parameters   |
 
 Rules when moving files into `cogs/`:

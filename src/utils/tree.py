@@ -30,6 +30,13 @@ class BotTree(app_commands.CommandTree):
         if interaction.response.is_done():
             return
 
+        if isinstance(error, app_commands.CommandOnCooldown):
+            await interaction.response.send_message(
+                f"Slow down — try again in {error.retry_after:.1f}s.",
+                ephemeral=True,
+            )
+            return
+
         if isinstance(error, CHECK_FAILURES):
             await interaction.response.send_message(str(error), ephemeral=True)
             return

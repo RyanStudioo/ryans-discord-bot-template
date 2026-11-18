@@ -1,19 +1,24 @@
-"""Permission decorators for application (slash) commands.
+"""Permission and rate-limit decorators for application (slash) commands.
 
 Every decorator returns an ``app_commands.check`` predicate, so they stack with
 other application-command decorators and work on both commands and groups.
-``is_bot_owner_prefix()`` is the exception: it guards text (prefix) commands and
-returns a ``commands.check`` instead, since they never collect app-command checks.
+``cooldown()`` wraps discord.py's cooldown check with the template's default
+bucketing, and ``is_bot_owner_prefix()`` is the exception: it guards text
+(prefix) commands and returns a ``commands.check`` instead, since they never
+collect app-command checks.
 
 Example::
 
     @app_commands.command(name="purge")
     @is_mod()
+    @cooldown(1, 10)
     async def purge(interaction: discord.Interaction, amount: int):
         ...
 """
 
 from __future__ import annotations
+
+from collections.abc import Awaitable, Callable, Hashable
 
 import discord
 from discord import app_commands
@@ -27,6 +32,8 @@ MODERATOR_PERMISSIONS = (
     "manage_threads",
     "manage_channels",
 )
+
+CooldownKey = Callable[[discord.Interaction], Hashable | Awaitable[Hashable]]
 
 
 class OwnerOnly(app_commands.CheckFailure):
@@ -123,6 +130,33 @@ def has_permissions(**required: bool):
         return True
 
     return app_commands.check(predicate)
+
+
+def cooldown(
+    rate: int,
+    per: float,
+    *,
+    key: CooldownKey | None = None,
+):
+    """Limit how often a command can be used inside a time window.
+
+    By default each user gets their own bucket. Pass ``key`` to change the
+    bucket, for example ``key=lambda interaction: interaction.guild_id`` for a
+    per-server limit or ``key=lambda _: None`` for a single global bucket.
+    When the limit is hit, ``BotTree`` replies with the remaining wait time.
+
+    Example::
+
+        @app_commands.command(name="purge")
+        @cooldown(1, 10)             # once per 10 seconds, per user
+        async def purge(interaction: discord.Interaction):
+            ...
+    """
+
+    if key is None:
+        return app_commands.checks.cooldown(rate, per)
+
+    return app_commands.checks.cooldown(rate, per, key=key)
 
 
 def is_bot_owner_prefix():

@@ -4,17 +4,19 @@ Discord bot template. Python >=3.13, discord.py 2.7.1, uv-managed. User commands
 
 ## Documentation
 
-Three docs describe this repo and must stay in sync with the code:
+Four docs describe this repo and must stay in sync with the code:
 
 - `ARCHITECTURE.md` — the architecture: components, contracts, runtime flows.
 - `MIGRATION.md` — porting an existing discord.py bot into this format.
 - `AGENTS.md` (this file) — operational rules and commands.
+- `docs/template.md` — feature tour and `src/utils` API reference.
 
 Any change to the architecture — layout, entrypoint, cog loading rules,
 `src/utils` contracts, constants, env vars, command or permission philosophy —
 or anything major for the migration story must be reflected in **both**
 `ARCHITECTURE.md` and `MIGRATION.md` in the same change set. Update this file
-too whenever a working rule changes. A code change without the matching doc
+too whenever a working rule changes, and `docs/template.md` whenever a public
+command, feature, or helper changes. A code change without the matching doc
 updates is incomplete.
 
 ## Setup / commands
@@ -36,13 +38,13 @@ updates is incomplete.
 
 - `cogs/__init__.py` auto-loads every cog except `IGNORED_COGS` and `_`-prefixed names. A cog is either a `cogs/*.py` file or a `cogs/<name>/` folder containing `__init__.py`; both must expose `async def setup(bot)` (for folders, define it in `__init__.py`). The extension name is `cogs.<stem>` or `cogs.<folder>`, so names must be valid module names.
 - A cog that raises during load is logged and skipped, so a missing command usually means a load error. Check `logs/bot.log`.
-- `src/utils/constants.py` holds `COGS_PATH`, `IGNORED_COGS`, and `PROJECT_ROOT = parents[2]`. Update these there, not in `cogs/__init__.py`.
+- `src/utils/constants.py` holds `COGS_PATH`, `DATA_PATH`, `IGNORED_COGS`, and `PROJECT_ROOT = parents[2]`. Update these there, not in `cogs/__init__.py`.
 - `cogs/template.py` is intentionally ignored, is only a snippet, and has no `setup()`. Copy it, add `setup()`, then rename it.
 - Prefix commands (`!`) are owner-only ops in `cogs/owner.py`: `!sync [global|guild|clear]`, `!cogs`, `!load`, `!unload`, `!reload`, `!shutdown`. They never appear in auto `/help`. Everything user-facing is a slash command: add `@app_commands.command(name=..., description=...)`; names and descriptions feed the auto `/help` (`cogs/help.py`). Commands without a description show "No description provided."
 
 ## Permission checks
 
-- `src/utils/checks.py` provides `is_bot_owner()`, `is_admin()`, `is_mod()`, `has_permissions(...)`, and `is_bot_owner_prefix()` (the bot-owner check for `!` prefix commands — app-command checks silently do nothing on text commands).
+- `src/utils/checks.py` provides `is_bot_owner()`, `is_admin()`, `is_mod()`, `has_permissions(...)`, `cooldown(rate, per, *, key=None)`, and `is_bot_owner_prefix()` (the bot-owner check for `!` prefix commands — app-command checks silently do nothing on text commands).
 - Put checks below `@app_commands.command(...)`, closest to the function:
 
 ```python
@@ -64,3 +66,4 @@ async def purge(interaction: discord.Interaction, amount: int): ...
 
 - Run from the repo root. `cogs` and `src` are top-level packages: use `from cogs import ...` and `from src.utils.x import ...`; cross-package relative imports will not work.
 - `src/utils/` holds shared helpers (`checks`, `tree`, `embeds`, `pagination`, `logging`, `reloader`, `constants`); `cogs/` holds features; `main.py` wires them together.
+- Runtime state (databases, caches, uploads) goes under `DATA_PATH` — the gitignored `data/` directory defined in `src/utils/constants.py`.
